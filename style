@@ -1,0 +1,109 @@
+<div class="container-fluid" style="background-color: #8ead94;">
+        <div class="row">
+            <div class="col-6">
+                <p class="mt-2"><?php echo $welcomeMessage; ?><?php echo $loginButton; ?></p>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+    <?php
+// Start or resume the session
+session_start();
+
+// Function to get the admin's username from the database
+function getAdminUsername($conn, $username)
+{
+    $sql = "SELECT admin_username FROM admin_table WHERE admin_username = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+
+    mysqli_stmt_bind_param($stmt, "s", $username);
+    mysqli_stmt_execute($stmt);
+
+    $result = mysqli_stmt_get_result($stmt);
+
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        return $row["admin_username"];
+    } else {
+        return "";
+    }
+}
+
+// Establish a database connection (replace with your database credentials)
+$con = mysqli_connect('localhost', 'root', '', 'Sanzone Commerce');
+
+// Check if login form is submitted
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login'])) {
+    $username = $_POST['admin_username'];
+    $password = $_POST['admin_password'];
+
+    $sql = "SELECT * FROM `admin_table` WHERE admin_username = ?";
+    $stmt = mysqli_prepare($con, $sql);
+
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "s", $username);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+
+        if ($result && mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+
+            if (password_verify($password, $row['admin_password'])) {
+                // Successful login
+                $_SESSION['admin_id'] = $row['admin_id'];
+                $_SESSION['admin_username'] = $row['admin_username'];
+                header("Location: Admindashboard.php");
+                exit();
+            } else {
+                // Incorrect password
+                echo "<script>alert('Incorrect password')</script>";
+            }
+        } else {
+            // Admin not found
+            echo "<script>alert('Admin not found. Username: $username')</script>";
+        }
+
+        mysqli_stmt_close($stmt);
+    } else {
+        // Statement preparation failed
+        echo "<script>alert('Error preparing statement: " . mysqli_error($con) . "')</script>";
+    }
+}
+
+// Check if logout button is clicked
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['logout'])) {
+    // Destroy the session
+    session_destroy();
+
+    // Redirect to Admindashboard.php
+    header("Location: Admindashboard.php");
+    exit();
+}
+
+// Check if admin is logged in
+if (isset($_SESSION['admin_id'])) {
+    // If logged in, get admin's username and update welcome message with it
+    $username = $_SESSION['admin_username'];
+    $usernameFromDB = getAdminUsername($con, $username);
+
+    if ($usernameFromDB != "") {
+        $welcomeMessage = 'Welcome, ' . $usernameFromDB . '!';
+        // Provide logout button
+        $loginButton = '<form method="post" action=""><button type="submit" name="logout" class="btn btn-outline-light" style="margin-left: 5px;">Logout</button></form>';
+    }
+} else {
+    // Admin is not logged in
+    $welcomeMessage = 'Welcome, Guest!&nbsp';
+    $loginButton = '<a href="adminlogin.php" class="btn btn-outline-light" style="margin-left: 5px;">Login</a>';
+}
+?>
